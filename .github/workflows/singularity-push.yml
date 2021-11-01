@@ -1,0 +1,58 @@
+name: Singularity Build
+on:
+  push:
+    branches:
+      - main
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        singularity_version:
+          - '3.5.3'
+        app_version:
+          - 'example'
+    container:
+      image: quay.io/singularity/singularity:v${{ matrix.singularity_version }}
+      options: --privileged
+      volumes:
+      - /software/bioinformatics:/prefix
+    steps:
+    - name: Check out code for the container build
+      uses: actions/checkout@v2
+
+    - name: Update timezone and localtime
+      run: |
+        apk add --no-cache tzdata
+        cp /usr/share/zoneinfo/$TZ /etc/localtime
+        echo $TZ > /etc/timezone
+        apk del tzdata
+      env:
+        TZ: Etc/UTC
+
+    - name: Build container
+      run: make build RECIPE_FILE=${SINGULARITY_FILE}
+      env:
+        SINGULARITY_FILE: Singularity.${{matrix.app_version}}
+
+    - name: Generate dist
+      run: make dist RECIPE_FILE=${SINGULARITY_FILE}
+      env:
+        SINGULARITY_FILE: Singularity.${{matrix.app_version}}
+
+    - name: Store artefact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{github.event.repository.name}}-${{ matrix.app_version }}-${{ github.sha }}
+        path: '*.tar.gz'
+
+    - name: Deploy
+      run: |
+        git status
+        make install PREFIX=${PREFIX} RECIPE_FILE=${SINGULARITY_FILE}
+        chown --recursive --verbose 10030:10030 ${PREFIX}
+      env:
+        SINGULARITY_FILE: Singularity.${{matrix.app_version}}
+        PREFIX: /prefix/${{github.event.repository.name}}-${{matrix.app_version}}
