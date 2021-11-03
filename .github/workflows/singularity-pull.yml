@@ -10,7 +10,7 @@ jobs:
         singularity_version:
           - '3.5.3'
         app_version:
-          - 'example'
+          - '3.1.1'
     container:
       image: quay.io/singularity/singularity:v${{ matrix.singularity_version }}
       options: --privileged

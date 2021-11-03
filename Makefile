@@ -41,13 +41,12 @@ IMAGE_FILE=$(IMAGE_NAME)-$(IMAGE_VERSION).sif
 # Building options - generally pass like:  make image BUILD_OPTIONS=--fakeroot
 BUILD_OPTIONS=
 LOCAL_IMAGE_DEPS=
-LOCAL_IMAGE_TARGET=.local-images
 SOURCE_DEPS=
 
 # How to create symlinks - delete as appropriate
 #SYMLINK_COMMAND=ln -sf $(IMAGE_FILE) name-of-app
 #SYMLINK_COMMAND=singularity inspect --list-apps $(IMAGE_FILE) | xargs -n1 ln -sf $(IMAGE_FILE)
-SYMLINK_COMMAND=singularity exec $(IMAGE_FILE) /opt/app-commands | xargs -n1 ln -sf $(IMAGE_FILE)
+SYMLINK_COMMAND=singularity exec $(IMAGE_FILE) cat /opt/kmc_commands | xargs -n1 ln -sf $(IMAGE_FILE)
 
 .PHONY: all run symlinks clean build install
 all: build
@@ -60,19 +59,9 @@ symlinks: $(IMAGE_FILE)
 clean:
 	@rm -rf $(IMAGE_FILE)
 
-$(IMAGE_FILE): $(RECIPE_FILE) $(SOURCE_DEPS) $(LOCAL_IMAGE_TARGET)
+$(IMAGE_FILE): $(RECIPE_FILE) $(SOURCE_DEPS)
 	@echo Will build $(IMAGE_FILE) from $(RECIPE_FILE)
 	@singularity build $(BUILD_OPTIONS) $(IMAGE_FILE) $(RECIPE_FILE)
-
-# LOCAL_RECIPE_FILE is actually the version.
-# use rev and cut to reliably get the last part
-# add more fields to retain any rogue - separators in version i.e. cut -d- -f1,2,3,4,5
-$(LOCAL_IMAGE_DEPS): LOCAL_RECIPE_FILE=$(shell grep "^From: $@/" $(RECIPE_FILE) | cut -d' ' -f2 | xargs -I{} basename {} .sif | rev | cut -d- -f1 | rev)
-$(LOCAL_IMAGE_DEPS):
-	@$(MAKE) -C $@ build RECIPE_FILE=Singularity.$(LOCAL_RECIPE_FILE)
-
-$(LOCAL_IMAGE_TARGET): $(LOCAL_IMAGE_DEPS)
-	@ls -td $? | head -n 1 | xargs -I{} touch -r {} $@
 
 build: $(IMAGE_FILE)
 

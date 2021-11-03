@@ -1,5 +1,0 @@
-Bootstrap: docker
-From: library/busybox:latest
-
-%runscript
-echo "This is an example only!"

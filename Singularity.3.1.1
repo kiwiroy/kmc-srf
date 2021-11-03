@@ -1,0 +1,46 @@
+Bootstrap: docker
+From: alpine:3.14
+
+%labels
+  Maintainer foo@bar.com
+  Version 0.0.999
+
+%post
+  cd /opt
+
+  ## install / update system dependencies
+  apk --update add --no-cache --virtual .build-deps build-base ca-certificates curl git make openssl python3-dev tar
+  apk --update add --no-cache --virtual .runtime python3
+
+  ## Fetch
+  curl -L https://github.com/refresh-bio/KMC/archive/refs/tags/v3.1.1.tar.gz | tar -zxf -
+
+  ## Build
+  cd KMC-3.1.1
+  make
+
+  ## install
+  install -d /opt/local/bin
+  echo > /opt/kmc_commands
+  for bin in bin/kmc*;
+    do
+    install -t /opt/local/bin $bin
+    echo $(basename $bin) >> /opt/kmc_commands
+  done
+  install -d /opt/local/share/doc
+  install -t /opt/local/share/doc kmc_tools.pdf
+  cd /opt
+  
+  ## cleanup
+  rm -rf KMC-3.1.1
+  apk del .build-deps
+
+%runscript
+  SINGULARITY_BASENAME=$(basename $SINGULARITY_NAME .sif)
+
+  if echo $SINGULARITY_BASENAME | grep -qxf /opt/kmc_commands; then
+    exec /opt/local/bin/$SINGULARITY_NAME "$@"
+  else
+    /bin/echo -e "This Singularity image cannot provide a single entrypoint. Please use \"singularity exec $SINGULARITY_NAME <cmd>\", where <cmd> is one of the following:\n"
+    exec cat /opt/kmc_commands
+  fi

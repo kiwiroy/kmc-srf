@@ -1,1 +1,1 @@
-Singularity.perl
+Singularity.3.1.1
